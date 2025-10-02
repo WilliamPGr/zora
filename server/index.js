@@ -2,6 +2,7 @@ import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import { Pool } from 'pg';
+import { ensureDatabase } from './lib/database.js';
 import { randomBytes, scrypt as scryptCallback, timingSafeEqual } from 'node:crypto';
 import { promisify } from 'node:util';
 
@@ -241,6 +242,28 @@ app.use((err, _req, res, _next) => {
   res.status(500).json({ message: 'Unexpected server error' });
 });
 
-app.listen(port, () => {
-  console.log(`Zora API running on http://localhost:${port}`);
-});
+async function start() {
+  try {
+    const { seededProducts } = await ensureDatabase(pool, { withSeed: true });
+    if (seededProducts > 0) {
+      console.log(`Database seed complete: upserted ${seededProducts} products`);
+    } else {
+      console.log('Database schema ensured (no product updates required)');
+    }
+
+    app.listen(port, () => {
+      console.log(`Zora API running on http://localhost:${port}`);
+    });
+  } catch (error) {
+    console.error('Failed to initialise database', error);
+    try {
+      await pool.end();
+    } catch (closeError) {
+      console.error('Failed to close database pool cleanly', closeError);
+    }
+    process.exit(1);
+  }
+}
+
+start();
+

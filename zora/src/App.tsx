@@ -29,7 +29,7 @@ import ChatBubbleOutlineIcon from '@mui/icons-material/ChatBubbleOutline';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import PersonOutlineIcon from '@mui/icons-material/PersonOutline';
 import logoUrl from '../../designs/logos/logo.png';
-import { LOGO_BLUE, designTokens } from './designSystem';
+import { LOGO_COLOR, PRODUCT_NAME_COLOR, designTokens } from './designSystem';
 
 type Product = {
   id: number;
@@ -307,7 +307,7 @@ export default function App() {
     handleAuthModeChange(AUTH_MODES.login);
   };
 
-  const accountHeading = currentUser ? 'Your Zora account' : authMode === AUTH_MODES.login ? 'Welcome back' : 'Join Zora';
+  const accountHeading = currentUser ? 'Your Zora account' : authMode === AUTH_MODES.login ? 'Welcome back' : 'Join Zora Cora';
   const accountDescription = currentUser
     ? `You are signed in as ${currentUser.email}. Use the options below to manage your session.`
     : authMode === AUTH_MODES.login
@@ -344,12 +344,13 @@ export default function App() {
             value={activeSection}
             onChange={handleSectionChange}
             textColor="inherit"
-            TabIndicatorProps={{ sx: { backgroundColor: LOGO_BLUE } }}
+            TabIndicatorProps={{ sx: { backgroundColor: LOGO_COLOR } }}
             sx={{
               flexGrow: 1,
               minHeight: 72,
               '& .MuiTab-root': {
                 minHeight: 72,
+                fontSize: { xs: '1.25rem', sm: '1.5rem' },
                 color: '#ffffff',
                 '&:hover': {
                   color: 'rgba(255, 255, 255, 0.8)',
@@ -458,7 +459,7 @@ export default function App() {
             <Typography variant="h3" component="h1" gutterBottom>
               Zora Collection
             </Typography>
-            <Typography variant="subtitle1" sx={{ mb: 4, color: 'common.white' }}>
+            <Typography variant="subtitle1" sx={{ mb: 4, color: 'common.black' }}>
               Curated home goods crafted by independent artisans. Updated daily from the Zora API.
             </Typography>
 
@@ -499,18 +500,65 @@ export default function App() {
                     />
                     <CardContent>
                       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', mb: 1 }}>
-                        <Typography variant="h6" component="h2">
+                        <Typography
+                          variant="h5"
+                          component="h2"
+                          sx={{ fontSize: { xs: "1.25rem", md: "1.4rem" }, color: PRODUCT_NAME_COLOR }}
+                        >
                           {product.name}
                         </Typography>
-                        <Chip label={`$${product.price.toFixed(2)}`} color="primary" variant="outlined" size="small" />
+                        <Chip
+                          label={`$${product.price.toFixed(2)}`}
+                          size="medium"
+                          variant="outlined"
+                          sx={{
+                            backgroundColor: designTokens.colors.priceTagBackground,
+                            color: designTokens.colors.priceTagText,
+                            borderColor: designTokens.colors.priceTagBackground,
+                            fontWeight: 600,
+                            fontSize: designTokens.sizes.priceTag.fontSize,
+                            px: designTokens.sizes.priceTag.paddingX,
+                            py: designTokens.sizes.priceTag.paddingY,
+                            borderRadius: designTokens.sizes.priceTag.borderRadius,
+                          }}
+                        />
                       </Box>
                       <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
                         {product.description}
                       </Typography>
-                      <Chip label={product.category} size="small" />
+                      <Chip
+                        label={product.category}
+                        size="small"
+                        sx={{
+                          backgroundColor: designTokens.colors.categoryChipBackground,
+                          color: designTokens.colors.categoryChipText,
+                          fontWeight: 600,
+                          px: 1.25,
+                          py: 0.5,
+                          borderRadius: '999px',
+                        }}
+                      />
+
                     </CardContent>
                     <CardActions sx={{ px: 2, pb: 2 }}>
-                      <Button size="small">View details</Button>
+                      <Button
+                        size="large"
+                        variant="contained"
+                        sx={{
+                          fontWeight: 600,
+                          backgroundColor: designTokens.colors.viewDetailsButton,
+                          color: designTokens.colors.viewDetailsButtonText,
+                          fontSize: designTokens.sizes.viewDetailsButton.fontSize,
+                          px: designTokens.sizes.viewDetailsButton.paddingX,
+                          py: designTokens.sizes.viewDetailsButton.paddingY,
+                          borderRadius: designTokens.sizes.viewDetailsButton.borderRadius,
+                          '&:hover': {
+                            backgroundColor: designTokens.colors.viewDetailsButtonHover,
+                          },
+                        }}
+                      >
+                        View details
+                      </Button>
                     </CardActions>
                   </Card>
                 </Grid>
@@ -670,8 +718,3 @@ export default function App() {
     </>
   );
 }
-
-
-
-
-

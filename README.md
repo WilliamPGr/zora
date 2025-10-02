@@ -1,6 +1,6 @@
 # Zora Webshop
 
-This project contains a React frontend powered by Vite and a Node.js/Express API that serves catalog data.
+This project contains a React frontend powered by Vite and a Node.js/Express API that stores data in PostgreSQL.
 
 ## Project structure
 
@@ -12,8 +12,9 @@ server/        Express API
 ## Prerequisites
 
 - Node.js 18+
+- Docker (optional, for running PostgreSQL locally)
 
-## Setup
+## Install dependencies
 
 1. Install frontend dependencies:
    ```bash
@@ -26,9 +27,37 @@ server/        Express API
    npm install
    ```
 
+## Database setup
+
+The API expects a PostgreSQL instance. The default credentials align with the values in `server/.env` (user/password/database all `zora`).
+
+### Option 1: Docker (recommended)
+
+```bash
+cd server
+docker compose up db
+```
+
+This starts PostgreSQL 16 on `localhost:5433` with a persistent volume.
+
+### Option 2: Existing PostgreSQL
+
+Point the server at your own database by updating `server/.env` (or the associated environment variables) with the correct host, port, user, password, and database name.
+
+### Seed the schema and sample data
+
+Once the database is running, initialise it:
+
+```bash
+cd server
+npm run db:init
+```
+
+The script creates the `products` and `users` tables and upserts the sample catalog from `server/db.json`. The Express server performs the same check when it boots, so rerunning the script is safe whenever you edit `db.json`.
+
 ## Running locally
 
-Open **two** terminals:
+Open separate terminals (ensure the database is running first):
 
 1. **API**
    ```bash
@@ -42,9 +71,7 @@ Open **two** terminals:
    cd zora
    npm run dev
    ```
-   Vite will prompt for a port (typically `5173`).
-
-The frontend automatically reads from the API at `http://localhost:5000`. To point it at another host, create `zora/.env` and set `VITE_API_BASE_URL`.
+   Vite will prompt for a port (typically `5173`). If the API runs elsewhere, create `zora/.env` with `VITE_API_BASE_URL` pointing to the desired URL.
 
 ## API endpoints
 
@@ -52,5 +79,7 @@ The frontend automatically reads from the API at `http://localhost:5000`. To poi
 - `GET /api/products`
 - `GET /api/products/:id`
 - `GET /api/data`
+- `POST /api/users`
+- `POST /api/login`
 
-Product data is stored in `server/db.json` and can be edited directly for quick prototyping.
+The sample product catalogue lives in `server/db.json`; edit it and rerun `npm run db:init` to refresh the database.
