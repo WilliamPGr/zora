@@ -1,0 +1,3 @@
+Backend API (Express): cmd.exe /C "cd /d F:\mineprogrammer\Websites\webshops\zora\server && npm run dev"
+Database (Postgres via Docker): cmd.exe /C "cd /d F:\mineprogrammer\Websites\webshops\zora\server && docker compose up db"
+Frontend (Vite dev server): cmd.exe /C "cd /d F:\mineprogrammer\Websites\webshops\zora\zora && npm run dev"

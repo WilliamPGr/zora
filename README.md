@@ -51,5 +51,6 @@ The frontend automatically reads from the API at `http://localhost:5000`. To poi
 - `GET /api/health`
 - `GET /api/products`
 - `GET /api/products/:id`
+- `GET /api/data`
 
 Product data is stored in `server/db.json` and can be edited directly for quick prototyping.

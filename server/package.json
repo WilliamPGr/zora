@@ -1,1 +1,17 @@
-{"name":"zora-server","version":"1.0.0","private":true,"type":"module","scripts":{"start":"node index.js","dev":"node index.js"},"dependencies":{"cors":"^2.8.5","express":"^4.19.2"}}
+{
+  "name": "zora-server",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "node index.js",
+    "db:init": "node scripts/init-db.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.3",
+    "express": "^4.19.2",
+    "pg": "^8.16.3"
+  }
+}
