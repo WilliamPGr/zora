@@ -4,6 +4,7 @@ import type { ReactNode } from 'react';
 export const designTokens = {
   colors: {
     highlight: '#2563eb',
+    zoratitle: '#2563eb',
     headerBackground: '#0f172a',
     subheaderBackground: '#0b1120',
     logoBlue: '#2563eb',
@@ -23,6 +24,10 @@ export const designTokens = {
     viewDetailsButtonText: '#ffffff',
     categoryChipBackground: '#2563eb',
     categoryChipText: '#ffffffff',
+    subTabTextSelected: '#ffffff',
+    subTabSelectedFill: '#2563eb',
+    subTabTextHover: '#1d4ed8',
+    subTabTextUnselected: '#ffffff',
   },
   sizes: {
     priceTag: {

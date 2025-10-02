@@ -1,14 +1,11 @@
 import { Fragment, useEffect, useMemo, useState, type FormEvent, type SyntheticEvent } from 'react';
+import { Navigate, Route, Routes, useLocation, useNavigate, useParams } from 'react-router-dom';
 import AppBar from '@mui/material/AppBar';
 import Toolbar from '@mui/material/Toolbar';
 import Tabs from '@mui/material/Tabs';
 import Tab from '@mui/material/Tab';
 import Container from '@mui/material/Container';
 import Typography from '@mui/material/Typography';
-import Grid from '@mui/material/Grid';
-import Card from '@mui/material/Card';
-import CardContent from '@mui/material/CardContent';
-import CardActions from '@mui/material/CardActions';
 import Button from '@mui/material/Button';
 import Chip from '@mui/material/Chip';
 import CircularProgress from '@mui/material/CircularProgress';
@@ -28,16 +25,26 @@ import FolderOutlinedIcon from '@mui/icons-material/FolderOutlined';
 import ChatBubbleOutlineIcon from '@mui/icons-material/ChatBubbleOutline';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import PersonOutlineIcon from '@mui/icons-material/PersonOutline';
+import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
+import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
+import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
+import ScheduleIcon from '@mui/icons-material/Schedule';
+import LoopIcon from '@mui/icons-material/Loop';
+import BuildCircleIcon from '@mui/icons-material/BuildCircle';
+import Inventory2OutlinedIcon from '@mui/icons-material/Inventory2Outlined';
 import logoUrl from '../../designs/logos/logo.png';
 import { LOGO_COLOR, PRODUCT_NAME_COLOR, designTokens } from './designSystem';
+import { siteCopy, notifications } from './siteCopy';
 
 type Product = {
   id: number;
   name: string;
   price: number;
+  vatRate: number;
   category: string;
   description: string;
   image: string;
+  inventoryStatus: string;
 };
 
 type User = {
@@ -58,15 +65,17 @@ function isProductArray(value: unknown): value is Product[] {
       typeof item.id === 'number' &&
       typeof item.name === 'string' &&
       typeof item.price === 'number' &&
+      typeof item.vatRate === 'number' &&
       typeof item.category === 'string' &&
       typeof item.description === 'string' &&
-      typeof item.image === 'string'
+      typeof item.image === 'string' &&
+      typeof item.inventoryStatus === 'string',
     )
   );
 }
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:5000';
-const ALL_CATEGORY = 'All';
+const ALL_CATEGORY = siteCopy.products.filters.all;
 const MAIN_SECTIONS = {
   products: 'products',
   forums: 'forums',
@@ -85,32 +94,75 @@ const EMAIL_REGEX = new RegExp('^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$');
 const forumFolders = [
   {
     id: 'global-chat',
-    name: 'Global Chat Forum',
+    name: siteCopy.forums.folders.globalChat.name,
     icon: <ChatBubbleOutlineIcon fontSize="small" />,
     badge: {
-      label: 'Human',
+      label: siteCopy.forums.folders.globalChat.badgeLabel,
       icon: <PersonOutlineIcon fontSize="small" />,
     },
-    description: 'Open dialogues with shoppers, makers, and curators across the Zora community.',
+    description: siteCopy.forums.folders.globalChat.description,
   },
   {
     id: 'explain-like-im-five',
-    name: "Explain Like I'm Five",
+    name: siteCopy.forums.folders.explainLikeImFive.name,
     icon: <FolderOutlinedIcon fontSize="small" />,
     badge: {
-      label: 'AI',
+      label: siteCopy.forums.folders.explainLikeImFive.badgeLabel,
       icon: <AutoAwesomeIcon fontSize="small" />,
     },
-    description: 'Ask the assistant anything about materials, care, or styling and get plain-language answers.',
+    description: siteCopy.forums.folders.explainLikeImFive.description,
   },
 ];
 
+function getInventoryChipProps(status: string) {
+  const normalized = status.trim().toLowerCase();
+  const normalizedWords = normalized.replace(/[_-]+/g, ' ');
+
+  if (normalizedWords.includes('in stock')) {
+    return {
+      color: 'success' as const,
+      icon: <CheckCircleOutlineIcon fontSize="small" />,
+    };
+  }
+
+  if (normalizedWords.includes('low')) {
+    return {
+      color: 'warning' as const,
+      icon: <ErrorOutlineIcon fontSize="small" />,
+    };
+  }
+
+  if (normalizedWords.includes('backorder') || normalizedWords.includes('back order')) {
+    return {
+      color: 'info' as const,
+      icon: <LoopIcon fontSize="small" />,
+    };
+  }
+
+  if (normalizedWords.includes('preorder') || normalizedWords.includes('pre order')) {
+    return {
+      color: 'info' as const,
+      icon: <ScheduleIcon fontSize="small" />,
+    };
+  }
+
+  if (normalizedWords.includes('made to order')) {
+    return {
+      color: 'info' as const,
+      icon: <BuildCircleIcon fontSize="small" />,
+    };
+  }
+
+  return {
+    color: 'default' as const,
+    icon: <Inventory2OutlinedIcon fontSize="small" />,
+  };
+}
 export default function App() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeCategory, setActiveCategory] = useState<string>(ALL_CATEGORY);
-  const [activeSection, setActiveSection] = useState<MainSection>(MAIN_SECTIONS.products);
   const [authMode, setAuthMode] = useState<AuthMode>(AUTH_MODES.login);
   const [authEmail, setAuthEmail] = useState('');
   const [authPassword, setAuthPassword] = useState('');
@@ -118,6 +170,9 @@ export default function App() {
   const [authSuccess, setAuthSuccess] = useState<string | null>(null);
   const [authLoading, setAuthLoading] = useState(false);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
+
+  const location = useLocation();
+  const navigate = useNavigate();
 
   useEffect(() => {
     const controller = new AbortController();
@@ -147,7 +202,7 @@ export default function App() {
         }
 
         if (!nextProducts) {
-          throw new Error('API response missing products collection');
+          throw new Error(siteCopy.products.errors.missingCollection);
         }
 
         setProducts(nextProducts);
@@ -182,12 +237,26 @@ export default function App() {
     return products.filter(product => product.category === activeCategory);
   }, [activeCategory, products]);
 
+  const currentSection: MainSection = useMemo(() => {
+    const [, section] = location.pathname.split('/');
+    if (
+      section === MAIN_SECTIONS.products ||
+      section === MAIN_SECTIONS.forums ||
+      section === MAIN_SECTIONS.account
+    ) {
+      return section;
+    }
+    return MAIN_SECTIONS.products;
+  }, [location.pathname]);
+
+  const isProductsRoute = currentSection === MAIN_SECTIONS.products;
+
   const handleCategoryChange = (_event: SyntheticEvent, value: string) => {
     setActiveCategory(value);
   };
 
   const handleSectionChange = (_event: SyntheticEvent, value: MainSection) => {
-    setActiveSection(value);
+    navigate(`/${value}`);
   };
 
   const handleAuthModeChange = (mode: AuthMode) => {
@@ -203,22 +272,21 @@ export default function App() {
   };
 
   const openAuthSection = (mode: AuthMode) => {
-    setActiveSection(MAIN_SECTIONS.account);
     handleAuthModeChange(mode);
+    navigate(`/${MAIN_SECTIONS.account}`);
   };
-
   const handleAuthSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
     const normalizedEmail = authEmail.trim().toLowerCase();
 
     if (!EMAIL_REGEX.test(normalizedEmail)) {
-      setAuthError('Please enter a valid email address.');
+      setAuthError(notifications.auth.invalidEmail);
       return;
     }
 
     if (authPassword.length < 8) {
-      setAuthError('Password must be at least 8 characters.');
+      setAuthError(notifications.auth.passwordTooShort);
       return;
     }
 
@@ -247,19 +315,19 @@ export default function App() {
           isRecord(payload) && typeof payload.message === 'string'
             ? payload.message
             : authMode === AUTH_MODES.login
-              ? 'Unable to log in. Please try again.'
-              : 'Unable to create account. Please try again.';
+              ? notifications.auth.loginFailure
+               : notifications.auth.registerFailure;
         throw new Error(message);
       }
 
       if (!isRecord(payload) || !('user' in payload) || !isRecord((payload as { user: unknown }).user)) {
-        throw new Error('Unexpected response from server.');
+        throw new Error(notifications.auth.unexpectedResponse);
       }
 
       const userRecord = (payload as { user: Record<string, unknown> }).user;
 
       if (typeof userRecord.email !== 'string') {
-        throw new Error('Unexpected response from server.');
+        throw new Error(notifications.auth.unexpectedResponse);
       }
 
       let userId: number | null = null;
@@ -274,7 +342,7 @@ export default function App() {
       }
 
       if (userId === null) {
-        throw new Error('Unexpected response from server.');
+        throw new Error(notifications.auth.unexpectedResponse);
       }
 
       const user: User = {
@@ -284,11 +352,11 @@ export default function App() {
       };
 
       setCurrentUser(user);
-      setAuthSuccess(authMode === AUTH_MODES.login ? 'Logged in successfully.' : 'Account created successfully.');
+      setAuthSuccess(authMode === AUTH_MODES.login ? notifications.auth.loginSuccess : notifications.auth.registerSuccess);
       setAuthEmail(user.email);
       setAuthPassword('');
     } catch (error) {
-      setAuthError((error as Error).message || 'Something went wrong. Please try again.');
+      setAuthError((error as Error).message || notifications.auth.genericError);
     } finally {
       setAuthLoading(false);
     }
@@ -297,7 +365,7 @@ export default function App() {
   const handleLogout = () => {
     const lastEmail = currentUser?.email ?? '';
     setCurrentUser(null);
-    setAuthSuccess('You have been signed out.');
+    setAuthSuccess(notifications.auth.logoutSuccess);
     setAuthPassword('');
     setAuthEmail(lastEmail);
   };
@@ -307,13 +375,27 @@ export default function App() {
     handleAuthModeChange(AUTH_MODES.login);
   };
 
-  const accountHeading = currentUser ? 'Your Zora account' : authMode === AUTH_MODES.login ? 'Welcome back' : 'Join Zora Cora';
-  const accountDescription = currentUser
-    ? `You are signed in as ${currentUser.email}. Use the options below to manage your session.`
+  const accountHeading = currentUser
+    ? siteCopy.account.headings.loggedIn
     : authMode === AUTH_MODES.login
-      ? 'Log in to access personalised recommendations and community features.'
-      : 'Create an account to save favourites and participate in the community forums.';
+      ? siteCopy.account.headings.login
+      : siteCopy.account.headings.register;
+  const accountDescription = currentUser
+    ? siteCopy.account.descriptions.loggedIn(currentUser.email)
+    : authMode === AUTH_MODES.login
+      ? siteCopy.account.descriptions.login
+      : siteCopy.account.descriptions.register;
 
+  const currencyFormatter = useMemo(
+    () =>
+      new Intl.NumberFormat('da-DK', {
+        style: 'currency',
+        currency: 'DKK',
+        minimumFractionDigits: 2,
+      }),
+    [],
+  );
+  const formatCurrency = (value: number) => currencyFormatter.format(value);
   return (
     <>
       <AppBar
@@ -338,10 +420,16 @@ export default function App() {
             component="img"
             src={logoUrl}
             alt="Zora logo"
-            sx={{ height: 36 }}
+            sx={{ height: 15 }}
           />
+          <Typography  sx={{ 
+              fontSize: { xs: '1.9rem', sm: '1.9rem' },
+              color: designTokens.colors.zoratitle 
+            }}>
+          {'ZORA CORE'}
+        </Typography>
           <Tabs
-            value={activeSection}
+            value={currentSection}
             onChange={handleSectionChange}
             textColor="inherit"
             TabIndicatorProps={{ sx: { backgroundColor: LOGO_COLOR } }}
@@ -361,9 +449,9 @@ export default function App() {
               },
             }}
           >
-            <Tab label="Products" value={MAIN_SECTIONS.products} />
-            <Tab label="Forums" value={MAIN_SECTIONS.forums} />
-            <Tab label="Account" value={MAIN_SECTIONS.account} />
+            <Tab label={siteCopy.navigation.tabs.products} value={MAIN_SECTIONS.products} />
+            <Tab label={siteCopy.navigation.tabs.forums} value={MAIN_SECTIONS.forums} />
+            <Tab label={siteCopy.navigation.tabs.account} value={MAIN_SECTIONS.account} />
           </Tabs>
           <Box sx={{ display: 'flex', gap: 1.5 }}>
             <Button
@@ -374,7 +462,7 @@ export default function App() {
               disabled={authLoading}
               onClick={() => openAuthSection(AUTH_MODES.login)}
             >
-              Log in
+              {siteCopy.navigation.authButtons.login}
             </Button>
             <Button
               variant="contained"
@@ -392,14 +480,15 @@ export default function App() {
               disabled={authLoading}
               onClick={() => openAuthSection(AUTH_MODES.register)}
             >
-              Create account
+              {siteCopy.navigation.authButtons.register}
             </Button>
           </Box>
         </Toolbar>
 
-        {activeSection === MAIN_SECTIONS.products && (
+        {isProductsRoute && (
           <Box
             sx={{
+              pt: 1,
               px: { xs: 2, sm: 4 },
               borderTop: theme => `1px solid ${theme.palette.divider}`,
             }}
@@ -429,22 +518,22 @@ export default function App() {
                   borderRadius: '999px',
                   textTransform: 'none',
                   fontWeight: 500,
-                  color: designTokens.colors.textSecondary,
+                  color: designTokens.colors.subTabTextUnselected,
                   transition: theme =>
                     theme.transitions.create(['color', 'background-color'], {
                       duration: theme.transitions.duration.short,
                     }),
                   '&:hover': {
-                    backgroundColor: designTokens.colors.subheaderTabHover,
+                    backgroundColor: designTokens.colors.subTabTextHover,
                   },
                   '&.Mui-selected': {
-                    backgroundColor: designTokens.colors.subheaderTabActive,
-                    color: designTokens.colors.textPrimary,
+                    backgroundColor: designTokens.colors.subTabSelectedFill,
+                    color: designTokens.colors.subTabTextSelected,
                   },
                 },
               }}
             >
-              <Tab label="All" value={ALL_CATEGORY} />
+              <Tab label={siteCopy.products.filters.all} value={ALL_CATEGORY} />
               {categories.map(category => (
                 <Tab key={category} label={category} value={category} />
               ))}
@@ -452,269 +541,511 @@ export default function App() {
           </Box>
         )}
       </AppBar>
+      <Container maxWidth="lg" sx={{ py: { xs: 6, md: 8 } }}>
+        <Routes>
+          <Route path="/" element={<Navigate to="/products" replace />} />
+          <Route
+            path="/products/*"
+            element={
+              <ProductsRoutes
+                loading={loading}
+                error={error}
+                filteredProducts={filteredProducts}
+                formatCurrency={formatCurrency}
+              />
+            }
+          />
+          <Route path="/forums/*" element={<ForumsRoutes folders={forumFolders} />} />
+          <Route
+            path="/account/*"
+            element={
+              <AccountRoute
+                authMode={authMode}
+                authEmail={authEmail}
+                authPassword={authPassword}
+                authError={authError}
+                authSuccess={authSuccess}
+                authLoading={authLoading}
+                currentUser={currentUser}
+                accountHeading={accountHeading}
+                accountDescription={accountDescription}
+                onAuthModeChange={handleAuthModeChange}
+                onAuthSubmit={handleAuthSubmit}
+                onLogout={handleLogout}
+                onSwitchAccount={handleSwitchAccount}
+                setAuthEmail={setAuthEmail}
+                setAuthPassword={setAuthPassword}
+              />
+            }
+          />
+          <Route path="*" element={<NotFoundRoute />} />
+        </Routes>
+      </Container>
 
-      <Container maxWidth="md" sx={{ py: 6 }}>
-        {activeSection === MAIN_SECTIONS.products && (
-          <>
-            <Typography variant="h3" component="h1" gutterBottom>
-              Zora Collection
-            </Typography>
-            <Typography variant="subtitle1" sx={{ mb: 4, color: 'common.black' }}>
-              Curated home goods crafted by independent artisans. Updated daily from the Zora API.
-            </Typography>
+      <Footer />
+    </>
+  );
+}
+type ProductsRoutesProps = {
+  loading: boolean;
+  error: string | null;
+  filteredProducts: Product[];
+  formatCurrency: (value: number) => string;
+};
 
-            {loading && (
-              <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
-                <CircularProgress />
-              </Box>
-            )}
+function ProductsRoutes({ loading, error, filteredProducts, formatCurrency }: ProductsRoutesProps) {
+  return (
+    <Routes>
+      <Route
+        index
+        element={
+          <ProductsIndex
+            loading={loading}
+            error={error}
+            filteredProducts={filteredProducts}
+            formatCurrency={formatCurrency}
+          />
+        }
+      />
+      <Route path=":productId" element={<ProductsPlaceholder />} />
+      <Route path="*" element={<ProductsPlaceholder />} />
+    </Routes>
+  );
+}
 
-            {error && (
-              <Alert severity="error" sx={{ mb: 3 }}>
-                {error}
-              </Alert>
-            )}
+type ProductsIndexProps = {
+  loading: boolean;
+  error: string | null;
+  filteredProducts: Product[];
+  formatCurrency: (value: number) => string;
+};
 
-            {!loading && !error && filteredProducts.length === 0 && (
-              <Alert severity="info">No products available in this category yet.</Alert>
-            )}
+function ProductsIndex({ loading, error, filteredProducts, formatCurrency }: ProductsIndexProps) {
+  return (
+    <Stack spacing={{ xs: 3, md: 4 }}>
+      <Box>
+        <Typography variant="h3" component="h1" gutterBottom>
+          {siteCopy.products.heading}
+        </Typography>
+        <Typography variant="subtitle1" sx={{ mb: 4, color: 'common.black' }}>
+          {siteCopy.products.subheading}
+        </Typography>
+      </Box>
 
-            <Grid container spacing={3}>
-              {filteredProducts.map(product => (
-                <Grid item xs={12} sm={6} md={4} key={product.id}>
-                  <Card
+      {loading && (
+        <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
+          <CircularProgress />
+        </Box>
+      )}
+
+      {error && (
+        <Alert severity="error" sx={{ mb: 3 }}>
+          {error}
+        </Alert>
+      )}
+
+      {!loading && !error && filteredProducts.length === 0 && (
+        <Alert severity="info">{siteCopy.products.emptyState}</Alert>
+      )}
+
+      {!loading && !error &&
+        filteredProducts.map(product => {
+          const priceExVat = product.price;
+          const priceIncVat = Number((priceExVat * (1 + product.vatRate)).toFixed(2));
+          const vatPercentRaw = product.vatRate * 100;
+          const vatPercentLabel = Number.isInteger(vatPercentRaw)
+            ? vatPercentRaw.toFixed(0)
+            : vatPercentRaw.toFixed(1);
+          const { color, icon } = getInventoryChipProps(product.inventoryStatus);
+
+          return (
+            <Paper
+              key={product.id}
+              variant="outlined"
+              sx={{
+                borderRadius: 4,
+                p: { xs: 3, md: 4 },
+                borderColor: 'rgba(15, 23, 42, 0.08)',
+                boxShadow: '0 18px 40px rgba(15, 23, 42, 0.08)',
+                background: 'linear-gradient(180deg, rgba(15, 23, 42, 0.02), rgba(15, 23, 42, 0.06) 110%)',
+                transition: theme =>
+                  theme.transitions.create(['transform', 'box-shadow'], {
+                    duration: theme.transitions.duration.short,
+                  }),
+                '&:hover': {
+                  transform: 'translateY(-6px)',
+                  boxShadow: '0 24px 55px rgba(15, 23, 42, 0.16)',
+                },
+              }}
+            >
+              <Stack direction={{ xs: 'column', md: 'row' }} spacing={{ xs: 3, md: 4 }} alignItems="stretch">
+                <Box sx={{ flexShrink: 0, width: { xs: '100%', md: 240 } }}>
+                  <Box
                     sx={{
-                      height: '100%',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      justifyContent: 'space-between',
+                      position: 'relative',
+                      width: '100%',
+                      pt: { xs: '55%', md: '45%' },
+                      borderRadius: 3,
+                      overflow: 'hidden',
+                      backgroundImage: `linear-gradient(145deg, rgba(37, 99, 235, 0.45), rgba(29, 78, 216, 0.1)), url(${product.image})`,
+                      backgroundSize: 'cover',
+                      backgroundPosition: 'center',
                     }}
+                  />
+                </Box>
+                <Stack spacing={2} flexGrow={1} justifyContent="space-between">
+                  <Stack spacing={1}>
+                    <Typography
+                      variant="h4"
+                      component="h2"
+                      sx={{ fontSize: { xs: '1.75rem', md: '1.9rem' }, color: PRODUCT_NAME_COLOR }}
+                    >
+                      {product.name}
+                    </Typography>
+                    <Typography variant="body1" color="text.secondary">
+                      {product.description}
+                    </Typography>
+                  </Stack>
+                  <Chip
+                    label={product.category}
+                    size="small"
+                    sx={{
+                      alignSelf: 'flex-start',
+                      fontWeight: 600,
+                      px: 1.5,
+                      borderRadius: '999px',
+                      backgroundColor: designTokens.colors.categoryChipBackground,
+                      color: designTokens.colors.categoryChipText,
+                    }}
+                  />
+                </Stack>
+                <Stack
+                  spacing={1.5}
+                  alignItems={{ xs: 'flex-start', md: 'flex-end' }}
+                  justifyContent="space-between"
+                  minWidth={{ md: 220 }}
+                >
+                  <Stack spacing={0.75} alignItems={{ xs: 'flex-start', md: 'flex-end' }}>
+                    <Typography variant="h4" sx={{ fontWeight: 700 }}>
+                      {formatCurrency(priceIncVat)}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      {siteCopy.products.priceLabels.exVat}: {formatCurrency(priceExVat)} ({siteCopy.products.priceLabels.vat} {vatPercentLabel}%)
+                    </Typography>
+                  </Stack>
+                  <Chip
+                    icon={icon}
+                    color={color}
+                    variant="outlined"
+                    label={product.inventoryStatus}
+                    sx={{ fontWeight: 600, px: 1.5, borderRadius: '999px' }}
+                  />
+                  <Button
+                    variant="contained"
+                    size="large"
+                    endIcon={<ArrowForwardIcon fontSize="small" />}
+                    sx={{ fontWeight: 600, textTransform: 'none', minWidth: { md: 200 } }}
                   >
-                    <Box
-                      sx={{
-                        pt: '56.25%',
-                        backgroundImage: `linear-gradient(135deg, rgba(79, 70, 229, 0.1), rgba(236, 72, 153, 0.15)), url(${product.image})`,
-                        backgroundSize: 'cover',
-                        backgroundPosition: 'center',
-                      }}
-                    />
-                    <CardContent>
-                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', mb: 1 }}>
-                        <Typography
-                          variant="h5"
-                          component="h2"
-                          sx={{ fontSize: { xs: "1.25rem", md: "1.4rem" }, color: PRODUCT_NAME_COLOR }}
-                        >
-                          {product.name}
+                    {siteCopy.products.actionLabel}
+                  </Button>
+                </Stack>
+              </Stack>
+            </Paper>
+          );
+        })}
+    </Stack>
+  );
+}
+function ProductsPlaceholder() {
+  const { productId } = useParams<{ productId?: string }>();
+  const title = siteCopy.products.placeholders.title;
+  const description = productId
+    ? siteCopy.products.placeholders.description(productId)
+    : siteCopy.products.placeholders.indexDescription;
+
+  return (
+    <Paper variant="outlined" sx={{ p: { xs: 3, md: 4 } }}>
+      <Stack spacing={1.5}>
+        <Typography variant="h4">{title}</Typography>
+        <Typography variant="body2" color="text.secondary">
+          {description}
+        </Typography>
+      </Stack>
+    </Paper>
+  );
+}
+
+
+type ForumsRoutesProps = {
+  folders: typeof forumFolders;
+};
+
+function ForumsRoutes({ folders }: ForumsRoutesProps) {
+  return (
+    <Routes>
+      <Route index element={<ForumsIndex folders={folders} />} />
+      <Route path=":forumId" element={<ForumsPlaceholder />} />
+      <Route path="*" element={<ForumsPlaceholder />} />
+    </Routes>
+  );
+}
+
+type ForumsIndexProps = {
+  folders: typeof forumFolders;
+};
+
+function ForumsIndex({ folders }: ForumsIndexProps) {
+  return (
+    <Stack spacing={3} alignItems="stretch">
+      <Typography variant="h3" component="h1">
+        {siteCopy.forums.heading}
+      </Typography>
+      <Typography variant="subtitle1" sx={{ color: 'common.black', maxWidth: 520 }}>
+        {siteCopy.forums.subheading}
+      </Typography>
+      <Paper variant="outlined" sx={{ borderRadius: 2 }}>
+        <List
+          component="nav"
+          disablePadding
+          subheader={
+            <ListSubheader component="div" sx={{ fontWeight: 600 }}>
+              {siteCopy.forums.directoryLabel}
+            </ListSubheader>
+          }
+        >
+          {folders.map((folder, index) => (
+            <Fragment key={folder.id}>
+              <ListItem disablePadding>
+                <ListItemButton sx={{ alignItems: 'flex-start' }}>
+                  <ListItemIcon sx={{ minWidth: 40 }}>{folder.icon}</ListItemIcon>
+                  <ListItemText
+                    primary={
+                      <Stack direction="row" spacing={1} alignItems="center">
+                        <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+                          {folder.name}
                         </Typography>
                         <Chip
-                          label={`$${product.price.toFixed(2)}`}
-                          size="medium"
+                          size="small"
+                          color="primary"
                           variant="outlined"
-                          sx={{
-                            backgroundColor: designTokens.colors.priceTagBackground,
-                            color: designTokens.colors.priceTagText,
-                            borderColor: designTokens.colors.priceTagBackground,
-                            fontWeight: 600,
-                            fontSize: designTokens.sizes.priceTag.fontSize,
-                            px: designTokens.sizes.priceTag.paddingX,
-                            py: designTokens.sizes.priceTag.paddingY,
-                            borderRadius: designTokens.sizes.priceTag.borderRadius,
-                          }}
+                          icon={folder.badge.icon}
+                          label={folder.badge.label}
                         />
-                      </Box>
-                      <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                        {product.description}
-                      </Typography>
-                      <Chip
-                        label={product.category}
-                        size="small"
-                        sx={{
-                          backgroundColor: designTokens.colors.categoryChipBackground,
-                          color: designTokens.colors.categoryChipText,
-                          fontWeight: 600,
-                          px: 1.25,
-                          py: 0.5,
-                          borderRadius: '999px',
-                        }}
-                      />
+                      </Stack>
+                    }
+                    secondary={folder.description}
+                    secondaryTypographyProps={{ color: 'common.black' }}
+                  />
+                </ListItemButton>
+              </ListItem>
+              {index < folders.length - 1 && <Divider component="li" />}
+            </Fragment>
+          ))}
+        </List>
+      </Paper>
+      <Button variant="contained" size="large" sx={{ alignSelf: 'flex-start' }}>
+        {siteCopy.forums.cta}
+      </Button>
+    </Stack>
+  );
+}
 
-                    </CardContent>
-                    <CardActions sx={{ px: 2, pb: 2 }}>
-                      <Button
-                        size="large"
-                        variant="contained"
-                        sx={{
-                          fontWeight: 600,
-                          backgroundColor: designTokens.colors.viewDetailsButton,
-                          color: designTokens.colors.viewDetailsButtonText,
-                          fontSize: designTokens.sizes.viewDetailsButton.fontSize,
-                          px: designTokens.sizes.viewDetailsButton.paddingX,
-                          py: designTokens.sizes.viewDetailsButton.paddingY,
-                          borderRadius: designTokens.sizes.viewDetailsButton.borderRadius,
-                          '&:hover': {
-                            backgroundColor: designTokens.colors.viewDetailsButtonHover,
-                          },
-                        }}
-                      >
-                        View details
-                      </Button>
-                    </CardActions>
-                  </Card>
-                </Grid>
-              ))}
-            </Grid>
-          </>
-        )}
+function ForumsPlaceholder() {
+  const { forumId } = useParams<{ forumId?: string }>();
+  const title = siteCopy.forums.placeholders.title;
+  const description = forumId
+    ? siteCopy.forums.placeholders.description(forumId)
+    : siteCopy.forums.placeholders.indexDescription;
 
-        {activeSection === MAIN_SECTIONS.forums && (
-          <Stack spacing={3} alignItems="stretch">
-            <Typography variant="h3" component="h1">
-              Community Forums
-            </Typography>
-            <Typography variant="subtitle1" sx={{ color: 'common.black', maxWidth: 520 }}>
-              Explore discussion spaces that feel like a tidy directory of workshops. Choose a folder to meet the people
-              behind Zora or tap into AI-powered explainers.
-            </Typography>
-            <Paper variant="outlined" sx={{ borderRadius: 2 }}>
-              <List
-                component="nav"
-                disablePadding
-                subheader={
-                  <ListSubheader component="div" sx={{ fontWeight: 600 }}>
-                    Forums Directory
-                  </ListSubheader>
-                }
-              >
-                {forumFolders.map((folder, index) => (
-                  <Fragment key={folder.id}>
-                    <ListItem disablePadding>
-                      <ListItemButton sx={{ alignItems: 'flex-start' }}>
-                        <ListItemIcon sx={{ minWidth: 40 }}>{folder.icon}</ListItemIcon>
-                        <ListItemText
-                          primary={
-                            <Stack direction="row" spacing={1} alignItems="center">
-                              <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
-                                {folder.name}
-                              </Typography>
-                              <Chip
-                                size="small"
-                                color="primary"
-                                variant="outlined"
-                                icon={folder.badge.icon}
-                                label={folder.badge.label}
-                              />
-                            </Stack>
-                          }
-                          secondary={folder.description}
-                          secondaryTypographyProps={{ color: 'common.black' }}
-                        />
-                      </ListItemButton>
-                    </ListItem>
-                    {index < forumFolders.length - 1 && <Divider component="li" />}
-                  </Fragment>
-                ))}
-              </List>
-            </Paper>
-            <Button variant="contained" size="large" sx={{ alignSelf: 'flex-start' }}>
-              Request Early Access
+  return (
+    <Paper variant="outlined" sx={{ p: { xs: 3, md: 4 } }}>
+      <Stack spacing={1.5}>
+        <Typography variant="h4">{title}</Typography>
+        <Typography variant="body2" color="text.secondary">
+          {description}
+        </Typography>
+      </Stack>
+    </Paper>
+  );
+}
+
+
+type AccountRouteProps = {
+  authMode: AuthMode;
+  authEmail: string;
+  authPassword: string;
+  authError: string | null;
+  authSuccess: string | null;
+  authLoading: boolean;
+  currentUser: User | null;
+  accountHeading: string;
+  accountDescription: string;
+  onAuthModeChange: (mode: AuthMode) => void;
+  onAuthSubmit: (event: FormEvent<HTMLFormElement>) => void | Promise<void>;
+  onLogout: () => void;
+  onSwitchAccount: () => void;
+  setAuthEmail: (value: string) => void;
+  setAuthPassword: (value: string) => void;
+};
+function AccountRoute({
+  authMode,
+  authEmail,
+  authPassword,
+  authError,
+  authSuccess,
+  authLoading,
+  currentUser,
+  accountHeading,
+  accountDescription,
+  onAuthModeChange,
+  onAuthSubmit,
+  onLogout,
+  onSwitchAccount,
+  setAuthEmail,
+  setAuthPassword,
+}: AccountRouteProps) {
+  return (
+    <Stack spacing={4} alignItems="stretch" maxWidth={480} mx="auto">
+      <Stack spacing={1.5} alignItems="center">
+        <Typography variant="h3" component="h1">
+          {accountHeading}
+        </Typography>
+        <Typography variant="body1" color="text.secondary" textAlign="center">
+          {accountDescription}
+        </Typography>
+      </Stack>
+
+      {!currentUser && (
+        <>
+          <Stack direction="row" spacing={1.5} justifyContent="center">
+            <Button
+              variant={authMode === AUTH_MODES.login ? 'contained' : 'text'}
+              onClick={() => onAuthModeChange(AUTH_MODES.login)}
+              disabled={authLoading}
+            >
+              {siteCopy.account.buttons.login}
+            </Button>
+            <Button
+              variant={authMode === AUTH_MODES.register ? 'contained' : 'text'}
+              onClick={() => onAuthModeChange(AUTH_MODES.register)}
+              disabled={authLoading}
+            >
+              {siteCopy.account.buttons.register}
             </Button>
           </Stack>
-        )}
-        {activeSection === MAIN_SECTIONS.account && (
-          <Stack spacing={4} alignItems="stretch" maxWidth={480} mx="auto">
-            <Stack spacing={1.5} alignItems="center">
-              <Typography variant="h3" component="h1">
-                {accountHeading}
-              </Typography>
-              <Typography variant="body1" color="text.secondary" textAlign="center">
-                {accountDescription}
-              </Typography>
-            </Stack>
 
-            {!currentUser && (
-              <>
-                <Stack direction="row" spacing={1.5} justifyContent="center">
-                  <Button
-                    variant={authMode === AUTH_MODES.login ? 'contained' : 'text'}
-                    onClick={() => handleAuthModeChange(AUTH_MODES.login)}
-                    disabled={authLoading}
-                  >
-                    Log in
-                  </Button>
-                  <Button
-                    variant={authMode === AUTH_MODES.register ? 'contained' : 'text'}
-                    onClick={() => handleAuthModeChange(AUTH_MODES.register)}
-                    disabled={authLoading}
-                  >
-                    Create account
-                  </Button>
-                </Stack>
+          {authError && <Alert severity="error">{authError}</Alert>}
+          {authSuccess && <Alert severity="success">{authSuccess}</Alert>}
+        </>
+      )}
 
-                {authError && <Alert severity="error">{authError}</Alert>}
-                {authSuccess && <Alert severity="success">{authSuccess}</Alert>}
-              </>
-            )}
-
-            {currentUser ? (
-              <Stack spacing={2.5}>
-                {authSuccess && <Alert severity="success">{authSuccess}</Alert>}
-                <Paper variant="outlined" sx={{ p: { xs: 3, sm: 4 } }}>
-                  <Stack spacing={2}>
-                    <Typography variant="h6">You're signed in</Typography>
-                    <Typography color="text.secondary">{currentUser.email}</Typography>
-                    <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} alignItems={{ xs: 'stretch', sm: 'center' }}>
-                      <Button variant="contained" onClick={handleLogout}>
-                        Sign out
-                      </Button>
-                      <Button variant="outlined" onClick={handleSwitchAccount}>
-                        Switch account
-                      </Button>
-                    </Stack>
-                  </Stack>
-                </Paper>
+      {currentUser ? (
+        <Stack spacing={2.5}>
+          {authSuccess && <Alert severity="success">{authSuccess}</Alert>}
+          <Paper variant="outlined" sx={{ p: { xs: 3, sm: 4 } }}>
+            <Stack spacing={2}>
+              <Typography variant="h6">{siteCopy.account.status.signedInTitle}</Typography>
+              <Typography color="text.secondary">{currentUser.email}</Typography>
+              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} alignItems={{ xs: 'stretch', sm: 'center' }}>
+                <Button variant="contained" onClick={onLogout}>
+                  {siteCopy.account.buttons.logout}
+                </Button>
+                <Button variant="outlined" onClick={onSwitchAccount}>
+                  {siteCopy.account.buttons.switchAccount}
+                </Button>
               </Stack>
-            ) : (
-              <Paper
-                variant="outlined"
-                sx={{ p: { xs: 3, sm: 4 } }}
-                component="form"
-                onSubmit={handleAuthSubmit}
-              >
-                <Stack spacing={2.5}>
-                  <TextField
-                    label="Email address"
-                    type="email"
-                    autoComplete="email"
-                    required
-                    value={authEmail}
-                    onChange={event => setAuthEmail(event.target.value)}
-                    disabled={authLoading}
-                  />
-                  <TextField
-                    label="Password"
-                    type="password"
-                    autoComplete={authMode === AUTH_MODES.login ? 'current-password' : 'new-password'}
-                    helperText="Use at least 8 characters."
-                    required
-                    value={authPassword}
-                    onChange={event => setAuthPassword(event.target.value)}
-                    disabled={authLoading}
-                  />
-                  <Button type="submit" variant="contained" size="large" disabled={authLoading}>
-                    {authLoading
-                      ? 'Please wait...'
-                      : authMode === AUTH_MODES.login
-                        ? 'Log in'
-                        : 'Create account'}
-                  </Button>
-                </Stack>
-              </Paper>
-            )}
+            </Stack>
+          </Paper>
+        </Stack>
+      ) : (
+        <Paper variant="outlined" sx={{ p: { xs: 3, sm: 4 } }} component="form" onSubmit={onAuthSubmit}>
+          <Stack spacing={2.5}>
+            <TextField
+              label={siteCopy.account.form.emailLabel}
+              type="email"
+              autoComplete="email"
+              required
+              value={authEmail}
+              onChange={event => setAuthEmail(event.target.value)}
+              disabled={authLoading}
+            />
+            <TextField
+              label={siteCopy.account.form.passwordLabel}
+              type="password"
+              autoComplete={authMode === AUTH_MODES.login ? 'current-password' : 'new-password'}
+              helperText={siteCopy.account.form.passwordHelper}
+              required
+              value={authPassword}
+              onChange={event => setAuthPassword(event.target.value)}
+              disabled={authLoading}
+            />
+            <Button type="submit" variant="contained" size="large" disabled={authLoading}>
+              {authLoading
+                ? siteCopy.account.buttons.submit.waiting
+                : authMode === AUTH_MODES.login
+                  ? siteCopy.account.buttons.login
+                  : siteCopy.account.buttons.register}
+            </Button>
           </Stack>
-          )
-        }
-      </Container>
-    </>
+        </Paper>
+      )}
+    </Stack>
+  );
+}
+
+function NotFoundRoute() {
+  return (
+    <Paper variant="outlined" sx={{ p: { xs: 3, md: 4 } }}>
+      <Stack spacing={1.5}>
+        <Typography variant="h4">{siteCopy.notFound.title}</Typography>
+        <Typography variant="body2" color="text.secondary">
+          {siteCopy.notFound.description}
+        </Typography>
+      </Stack>
+    </Paper>
+  );
+}
+
+function Footer() {
+  const year = new Date().getFullYear();
+
+  return (
+    <Container
+      component="footer"
+      maxWidth="lg"
+      sx={{
+        py: { xs: 6, md: 8 },
+        mt: { xs: 6, md: 10 },
+        borderTop: theme => `1px solid ${theme.palette.divider}`,
+      }}
+    >
+      <Stack
+        direction={{ xs: 'column', md: 'row' }}
+        spacing={{ xs: 3, md: 6 }}
+        justifyContent="space-between"
+        alignItems={{ xs: 'flex-start', md: 'center' }}
+      >
+        <Stack spacing={1}>
+          <Typography variant="h6">{siteCopy.footer.heading}</Typography>
+          <Typography variant="body2" color="text.secondary">
+            {siteCopy.footer.tagline}
+          </Typography>
+        </Stack>
+        <Stack spacing={1}>
+          <Typography variant="body2">
+            {siteCopy.footer.contactLabel} <Box component="span" sx={{ fontWeight: 600 }}>{siteCopy.footer.supportEmail}</Box>
+          </Typography>
+          <Typography variant="body2">{siteCopy.footer.phone}</Typography>
+          <Typography variant="body2">{siteCopy.footer.address}</Typography>
+        </Stack>
+        <Stack spacing={1}>
+          <Typography variant="body2">{siteCopy.footer.businessHours}</Typography>
+          <Typography variant="body2">{siteCopy.footer.cvr}</Typography>
+          <Typography variant="body2" color="text.secondary">
+            {siteCopy.footer.copyright(year)}
+          </Typography>
+        </Stack>
+      </Stack>
+    </Container>
   );
 }

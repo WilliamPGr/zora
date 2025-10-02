@@ -90,16 +90,35 @@ pool.on('error', error => {
 });
 
 function normaliseProduct(product) {
+  const rawPrice = typeof product.price === 'string' ? Number(product.price) : product.price;
+  const price = Number.isFinite(rawPrice) ? Number(rawPrice) : 0;
+
+  const rawVat = product.vatRate ?? product.vat_rate ?? 0;
+  const numericVat = typeof rawVat === 'string' ? Number(rawVat) : rawVat;
+  const vatRate = Number.isFinite(numericVat) ? Number(numericVat) : 0;
+
+  const inventoryStatus =
+    typeof product.inventoryStatus === 'string'
+      ? product.inventoryStatus
+      : typeof product.inventory_status === 'string'
+        ? product.inventory_status
+        : 'in_stock';
+
   return {
-    ...product,
-    price:
-      typeof product.price === 'string' ? Number(product.price) : product.price,
+    id: product.id,
+    name: product.name,
+    price,
+    vatRate,
+    category: product.category,
+    description: product.description,
+    image: product.image,
+    inventoryStatus,
   };
 }
 
 async function fetchProducts() {
   const { rows } = await pool.query(
-    `SELECT id, name, price, category, description, image
+    `SELECT id, name, price, vat_rate, category, description, image, inventory_status
        FROM products
        ORDER BY id ASC`
   );
@@ -112,7 +131,7 @@ async function fetchAllData() {
 }
 async function fetchProductById(id) {
   const { rows } = await pool.query(
-    `SELECT id, name, price, category, description, image
+    `SELECT id, name, price, vat_rate, category, description, image, inventory_status
        FROM products
        WHERE id = $1`,
     [id]

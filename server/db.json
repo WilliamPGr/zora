@@ -1,1 +1,104 @@
-{"products":[{"id":1,"name":"fisk Pendant","price":129.99,"category":"Lighting","description":"Hand-blown glass pendant that casts a warm diffused glow.","image":"/images/aurora-pendant.jpg"},{"id":2,"name":"Solstice Vase","price":58.5,"category":"Decor","description":"Stoneware vase with a matte eggshell finish and subtle ombre glazing.","image":"/images/solstice-vase.jpg"},{"id":3,"name":"Harbor Throw","price":96,"category":"Textiles","description":"Chunky cotton throw woven on traditional shuttle looms.","image":"/images/harbor-throw.jpg"},{"id":4,"name":"Horizon Planter","price":42,"category":"Garden","description":"Self-watering planter formed from recycled composite material.","image":"/images/horizon-planter.jpg"}]}
+{
+  "products": [
+    {
+      "id": 1,
+      "name": "Fisk Pendant",
+      "price": 129.99,
+      "vatRate": 0.25,
+      "category": "Lighting",
+      "description": "Hand-blown glass pendant that casts a warm diffused glow.",
+      "image": "/images/aurora-pendant.jpg",
+      "inventoryStatus": "In stock"
+    },
+    {
+      "id": 2,
+      "name": "Solstice Vase",
+      "price": 58.5,
+      "vatRate": 0.25,
+      "category": "Decor",
+      "description": "Stoneware vase with a matte eggshell finish and subtle ombre glazing.",
+      "image": "/images/solstice-vase.jpg",
+      "inventoryStatus": "Low stock"
+    },
+    {
+      "id": 3,
+      "name": "Harbor Throw",
+      "price": 96,
+      "vatRate": 0.25,
+      "category": "Textiles",
+      "description": "Chunky cotton throw woven on traditional shuttle looms.",
+      "image": "/images/harbor-throw.jpg",
+      "inventoryStatus": "In stock"
+    },
+    {
+      "id": 4,
+      "name": "Horizon Planter",
+      "price": 42,
+      "vatRate": 0.25,
+      "category": "Garden",
+      "description": "Self-watering planter formed from recycled composite material.",
+      "image": "/images/horizon-planter.jpg",
+      "inventoryStatus": "Preorder"
+    },
+    {
+      "id": 5,
+      "name": "Nordic Oak Desk",
+      "price": 745,
+      "vatRate": 0.25,
+      "category": "Furniture",
+      "description": "Solid oak writing desk with a floating drawer and natural oil finish.",
+      "image": "/images/nordic-desk.jpg",
+      "inventoryStatus": "In stock"
+    },
+    {
+      "id": 6,
+      "name": "Lumen Floor Lamp",
+      "price": 189.5,
+      "vatRate": 0.25,
+      "category": "Lighting",
+      "description": "Adjustable floor lamp with linen shade and dimmable LED core.",
+      "image": "/images/lumen-floor-lamp.jpg",
+      "inventoryStatus": "Backorder"
+    },
+    {
+      "id": 7,
+      "name": "Riverstone Serve Set",
+      "price": 128,
+      "vatRate": 0.25,
+      "category": "Kitchen",
+      "description": "Hand-polished stoneware serving platters fired in small batches.",
+      "image": "/images/riverstone-serve.jpg",
+      "inventoryStatus": "In stock"
+    },
+    {
+      "id": 8,
+      "name": "Atlas Wool Rug",
+      "price": 542,
+      "vatRate": 0.25,
+      "category": "Textiles",
+      "description": "Flat-weave rug made from undyed New Zealand wool with hand-braided edges.",
+      "image": "/images/atlas-wool-rug.jpg",
+      "inventoryStatus": "Made to order"
+    },
+    {
+      "id": 9,
+      "name": "Maris Wall Shelf",
+      "price": 212.75,
+      "vatRate": 0.25,
+      "category": "Storage",
+      "description": "Modular wall shelf in powder-coated steel with hidden mounting hardware.",
+      "image": "/images/maris-shelf.jpg",
+      "inventoryStatus": "Low stock"
+    },
+    {
+      "id": 10,
+      "name": "Cinder Tea Set",
+      "price": 148.4,
+      "vatRate": 0.25,
+      "category": "Kitchen",
+      "description": "Matte porcelain tea set with bamboo tray and double-walled cups.",
+      "image": "/images/cinder-tea-set.jpg",
+      "inventoryStatus": "In stock"
+    }
+  ]
+}

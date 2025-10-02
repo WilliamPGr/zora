@@ -15,7 +15,7 @@ function parseProductRecord(rawProduct) {
     return null;
   }
 
-  const { id, name, price, category, description, image } = rawProduct;
+  const { id, name, price, vatRate, category, description, image, inventoryStatus } = rawProduct;
 
   if (!Number.isInteger(id) || id <= 0) {
     return null;
@@ -30,13 +30,25 @@ function parseProductRecord(rawProduct) {
     return null;
   }
 
+  const numericVatRate = typeof vatRate === 'number' ? vatRate : Number(vatRate);
+  if (!Number.isFinite(numericVatRate) || numericVatRate < 0) {
+    return null;
+  }
+
+  const status = typeof inventoryStatus === 'string' ? inventoryStatus.trim() : '';
+  if (!isNonEmptyString(status)) {
+    return null;
+  }
+
   return {
     id,
     name: name.trim(),
     price: Number(numericPrice.toFixed(2)),
+    vatRate: Number(numericVatRate.toFixed(4)),
     category: category.trim(),
     description: description.trim(),
     image: image.trim(),
+    inventoryStatus: status,
   };
 }
 
@@ -48,9 +60,7 @@ async function loadSeedProducts() {
     return [];
   }
 
-  return manifest.products
-    .map(parseProductRecord)
-    .filter((product) => product !== null);
+  return manifest.products.map(parseProductRecord).filter(product => product !== null);
 }
 
 async function ensureTables(client) {
@@ -59,10 +69,22 @@ async function ensureTables(client) {
       id INTEGER PRIMARY KEY,
       name TEXT NOT NULL,
       price NUMERIC(10, 2) NOT NULL,
+      vat_rate NUMERIC(6, 4) NOT NULL DEFAULT 0.25,
       category TEXT NOT NULL,
       description TEXT NOT NULL,
-      image TEXT NOT NULL
+      image TEXT NOT NULL,
+      inventory_status TEXT NOT NULL DEFAULT 'in_stock'
     )
+  `);
+
+  await client.query(`
+    ALTER TABLE products
+      ADD COLUMN IF NOT EXISTS vat_rate NUMERIC(6, 4) NOT NULL DEFAULT 0.25
+  `);
+
+  await client.query(`
+    ALTER TABLE products
+      ADD COLUMN IF NOT EXISTS inventory_status TEXT NOT NULL DEFAULT 'in_stock'
   `);
 
   await client.query(`
@@ -83,21 +105,25 @@ async function seedProductsTable(client, products) {
   let seededCount = 0;
   for (const product of products) {
     await client.query(
-      `INSERT INTO products (id, name, price, category, description, image)
-       VALUES ($1, $2, $3, $4, $5, $6)
+      `INSERT INTO products (id, name, price, vat_rate, category, description, image, inventory_status)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
        ON CONFLICT (id) DO UPDATE
        SET name = EXCLUDED.name,
            price = EXCLUDED.price,
+           vat_rate = EXCLUDED.vat_rate,
            category = EXCLUDED.category,
            description = EXCLUDED.description,
-           image = EXCLUDED.image`,
+           image = EXCLUDED.image,
+           inventory_status = EXCLUDED.inventory_status`,
       [
         product.id,
         product.name,
         product.price,
+        product.vatRate,
         product.category,
         product.description,
         product.image,
+        product.inventoryStatus,
       ],
     );
     seededCount += 1;
